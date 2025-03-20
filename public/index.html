@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Hospital Management System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 60%;
+            margin: 50px auto;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        input,
+        select,
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Hospital Management System</h2>
+
+        <!-- Add Doctor -->
+        <h3>Add Doctor</h3>
+        <input type="text" id="doctorName" placeholder="Doctor Name" />
+        <input type="text" id="department" placeholder="Department" />
+        <select id="category">
+            <option value="Permanent">Permanent</option>
+            <option value="Visiting">Visiting</option>
+            <option value="Trainee">Trainee</option>
+        </select>
+        <button onclick="addDoctor()">Add Doctor</button>
+
+        <!-- View Doctors -->
+        <h3>View Doctors</h3>
+        <button onclick="fetchAllDoctors()">All Doctors</button>
+        <button onclick="fetchDoctors('Permanent')">Permanent Doctors</button>
+        <button onclick="fetchDoctors('Visiting')">Visiting Doctors</button>
+        <button onclick="fetchDoctors('Trainee')">Trainee Doctors</button>
+
+        <table id="doctorTable">
+            <thead>
+                <tr>
+                    <th>Doctor ID</th>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Add Patient -->
+        <h3>Add Patient</h3>
+        <input type="text" id="patientName" placeholder="Patient Name" />
+        <input type="text" id="age" placeholder="Age" />
+        <input type="text" id="address" placeholder="Address" />
+        <input type="text" id="disease" placeholder="Disease" />
+        <input type="text" id="gender" placeholder="Gender" />
+        <select id="condition">
+            <option value="Mild">Mild</option>
+            <option value="Moderate">Moderate</option>
+            <option value="Severe">Severe</option>
+        </select>
+        <button onclick="addPatient()">Add Patient</button>
+
+        <!-- View Patients -->
+        <h3>View Patients</h3>
+        <button onclick="fetchPatients()">Show Patients</button>
+        <button onclick="fetchInpatients()">Show Inpatients</button>
+        <button onclick="fetchOutpatients()">Show Outpatients</button>
+
+        <table id="patientTable">
+            <thead>
+                <tr>
+                    <th>Patient ID</th>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Address</th>
+                    <th>Disease</th>
+                    <th>Gender</th>
+                    <th>Condition</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- View Rooms -->
+        <h3>View Rooms</h3>
+        <button onclick="fetchRooms()">Show Rooms</button>
+
+        <table id="roomTable">
+            <thead>
+                <tr>
+                    <th>Room No</th>
+                    <th>Room Type</th>
+                    <th>Status</th>
+                    <th>Charges</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Update Inpatient Status -->
+        <h3>Update Inpatient Status</h3>
+        <input type="text" id="inpatientId" placeholder="Inpatient ID" />
+        <select id="status">
+            <option value="Admitted">Admitted</option>
+            <option value="Discharged">Discharged</option>
+        </select>
+        <button onclick="updateInpatient()">Update Status</button>
+
+        <!-- Generate Bill -->
+        <h3>Generate Bill</h3>
+        <input type="text" id="patientId" placeholder="Patient ID" />
+        <input type="text" id="roomCharges" placeholder="Room Charges" />
+        <input type="text" id="labCharges" placeholder="Lab Charges" />
+        <input type="text" id="operationCharges" placeholder="Operation Charges" />
+        <input type="text" id="medicineCharges" placeholder="Medicine Charges" />
+        <button onclick="generateBill()">Generate Bill</button>
+    </div>
+
+    <script>
+        function addDoctor() {
+            const doctorName = document.getElementById('doctorName').value;
+            const department = document.getElementById('department').value;
+            const category = document.getElementById('category').value;
+
+            fetch('http://localhost:5000/addDoctor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ DoctorName: doctorName, Department: department, Category: category })
+            })
+                .then(res => res.text())
+                .then(data => {
+                    alert(data);
+                    clearDoctorFields();
+                });
+        }
+
+        function fetchAllDoctors() {
+            fetch('http://localhost:5000/getDoctors')
+                .then(res => res.json())
+                .then(data => {
+                    let tableBody = document.querySelector('#doctorTable tbody');
+                    tableBody.innerHTML = '';
+                    data.forEach(doctor => {
+                        tableBody.innerHTML += `
+            <tr>
+              <td>${doctor.DoctorID}</td>
+              <td>${doctor.DoctorName}</td>
+              <td>${doctor.Department}</td>
+              <td><button onclick="deleteDoctor(${doctor.DoctorID})">Delete</button></td>
+            </tr>
+          `;
+                    });
+                });
+        }
+
+        function fetchDoctors(category) {
+            let url = '';
+            if (category === 'Permanent') url = 'getPermanentDoctors';
+            else if (category === 'Visiting') url = 'getVisitingDoctors';
+            else url = 'getTraineeDoctors';
+
+            fetch(`http://localhost:5000/${url}`)
+                .then(res => res.json())
+                .then(data => {
+                    let tableBody = document.querySelector('#doctorTable tbody');
+                    tableBody.innerHTML = '';
+                    data.forEach(doctor => {
+                        tableBody.innerHTML += `
+            <tr>
+              <td>${doctor.Doctorid}</td>
+              <td>${doctor.Doctor_name}</td>
+              <td>${doctor.Dept}</td>
+              <td><button onclick="deleteDoctor(${doctor.Doctorid})">Delete</button></td>
+            </tr>
+          `;
+                    });
+                });
+        }
+
+        function deleteDoctor(id) {
+            fetch(`http://localhost:5000/deleteDoctor/${id}`, {
+                method: 'DELETE'
+            })
+                .then(res => res.text())
+                .then(data => {
+                    alert(data);
+                    fetchAllDoctors();
+                });
+        }
+
+        function addPatient() {
+            const patientName = document.getElementById('patientName').value;
+            const age = document.getElementById('age').value;
+            const address = document.getElementById('address').value;
+            const disease = document.getElementById('disease').value;
+            const gender = document.getElementById('gender').value;
+            const condition = document.getElementById('condition').value;
+
+            fetch('http://localhost:5000/addPatient', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ PatientName: patientName, Age: age, Address: address, Disease: disease, Gender: gender, Condition: condition })
+            })
+                .then(res => res.text())
+                .then(data => {
+                    alert(data);
+                    clearPatientFields();
+                });
+        }
+
+        function fetchPatients() {
+            fetch('http://localhost:5000/getPatients')
+                .then(res => res.json())
+                .then(data => {
+                    let tableBody = document.querySelector('#patientTable tbody');
+                    tableBody.innerHTML = '';
+                    data.forEach(patient => {
+                        tableBody.innerHTML += `
+          <tr>
+            <td>${patient.PatientID}</td>
+            <td>${patient.Name}</td>
+            <td>${patient.Age}</td>
+            <td>${patient.Address}</td>
+            <td>${patient.Disease}</td>
+            <td>${patient.Gender}</td>
+            <td>${patient.Condition}</td>
+            <td><button onclick="deletePatient(${patient.PatientID})">Delete</button></td>
+          </tr>
+        `;
+                    });
+                });
+        }
+
+        function fetchInpatients() {
+            fetch('http://localhost:5000/getInpatients')
+                .then(res => res.json())
+                .then(data => {
+                    let tableBody = document.querySelector('#patientTable tbody');
+                    tableBody.innerHTML = '';
+                    data.forEach(patient => {
+                        tableBody.innerHTML += `
+          <tr>
+            <td>${patient.PatientID}</td>
+            <td>${patient.Name}</td>
+            <td>${patient.Age}</td>
+            <td>${patient.Address}</td>
+            <td>${patient.Disease}</td>
+            <td>${patient.Gender}</td>
+            <td>${patient.DateOfAdmission}</td>
+            <td>${patient.DateOfDischarge}</td>
+            <td>${patient.AdvanceAmount}</td>
+            <td>${patient.RoomNo}</td>
+            <td>${patient.RoomType}</td>
+            <td>${patient.Status}</td>
+            <td><button onclick="deletePatient(${patient.PatientID})">Delete</button></td>
+          </tr>
+        `;
+                    });
+                });
+        }
+
+        function fetchOutpatients() {
+            fetch('http://localhost:5000/getOutpatients')
+                .then(res => res.json())
+                .then(data => {
+                    let tableBody = document.querySelector('#patientTable tbody');
+                    tableBody.innerHTML = '';
+                    data.forEach(patient => {
+                        tableBody.innerHTML += `
+          <tr>
+               <td>${patient.PatientID}</td>
+            <td>${patient.Name}</td>
+            <td>${patient.Age}</td>
+            <td>${patient.Address}</td>
+            <td>${patient.Disease}</td>
+            <td>${patient.Gender}</td>
+            <td>${patient.ConsultationDate}</td>
+            <td>${patient.DoctorID}</td>
+            <td><button onclick="deletePatient(${patient.PatientID})">Delete</button></td>
+          </tr>
+        `;
+                    });
+                });
+        }
+
+        function deletePatient(id) {
+            fetch(`http://localhost:5000/deletePatient/${id}`, {
+                method: 'DELETE'
+            })
+                .then(res => res.text())
+                .then(data => {
+                    alert(data);
+                    fetchPatients();
+                });
+        }
+
+        function fetchRooms() {
+            fetch('http://localhost:5000/getRooms')
+                .then(res => res.json())
+                .then(data => {
+                    let tableBody = document.querySelector('#roomTable tbody');
+                    tableBody.innerHTML = '';
+                    data.forEach(room => {
+                        tableBody.innerHTML += `
+          <tr>
+            <td>${room.RoomNo}</td>
+            <td>${room.RoomType}</td>
+            <td>${room.Status}</td>
+            <td>${room.Charges}</td>
+          </tr>
+        `;
+                    });
+                });
+        }
+
+        function updateInpatient() {
+            const inpatientId = document.getElementById('inpatientId').value;
+            const status = document.getElementById('status').value;
+
+            fetch(`http://localhost:5000/dischargePatient/${inpatientId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ Status: status })
+            })
+                .then(res => res.text())
+                .then(data => {
+                    alert(data);
+                });
+        }
+
+        function generateBill() {
+            const patientId = document.getElementById('patientId').value;
+            const roomCharges = document.getElementById('roomCharges').value;
+            const labCharges = document.getElementById('labCharges').value;
+            const operationCharges = document.getElementById('operationCharges').value;
+            const medicineCharges = document.getElementById('medicineCharges').value;
+
+            fetch('http://localhost:5000/addBill', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    PatientID: patientId,
+                    RoomCharges: roomCharges,
+                    LabCharges: labCharges,
+                    OperationCharges: operationCharges,
+                    MedicineCharges: medicineCharges
+                })
+            })
+                .then(res => res.text())
+                .then(data => {
+                    alert(data);
+                });
+        }
+
+        function clearDoctorFields() {
+            document.getElementById('doctorName').value = '';
+            document.getElementById('department').value = '';
+            document.getElementById('category').value = 'Permanent';
+        }
+
+        function clearPatientFields() {
+            document.getElementById('patientName').value = '';
+            document.getElementById('age').value = '';
+            document.getElementById('address').value = '';
+            document.getElementById('disease').value = '';
+            document.getElementById('gender').value = '';
+            document.getElementById('condition').value = 'Mild'; // Reset condition to default
+        }
+    </script>
+
+</body>
+
+</html>

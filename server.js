@@ -1,23 +1,99 @@
 const express = require('express');
-const mysql = require('mysql');
+//const mysql = require('mysql');
+const mysql = require('mysql2');
 const bodyParser = require('body-parser');
 const path = require('path');
+const fs = require('fs');
+require('dotenv').config();
+
 
 const app = express();
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// =================================================
+//
+//                    For Dev
+//
+//  =================================================
+// const db = mysql.createConnection({
+//   host: 'localhost',
+//   user: 'root',
+//   password: 'Vyasvraj@92',
+//   database: 'HospitalDB',
+// });
+
+// db.connect(err => {
+//   if (err) throw err;
+//   console.log('MySQL Connected...');
+// });
+
+// =============================================================
+// 
+//              Production 
+// 
+// =============================================================
+
+
 const db = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: 'Vyasvraj@92',
-  database: 'HospitalDB',
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  ssl: {
+    ca: process.env.SSL_CERT_PATH
+  },
+  multipleStatements: true
 });
 
-db.connect(err => {
-  if (err) throw err;
-  console.log('MySQL Connected...');
+db.connect(async (err) => {
+  if (err) {
+    console.error('Error connecting to MySQL:', err);
+    return;
+  }
+  console.log('MySQL Connected to Aiven...');
+
+  try {
+    // Read and execute schema file
+    const schemaPath = path.join(__dirname, 'HMSDB_Production.sql');
+    const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
+    await executeSQL(schemaSQL, 'Database schema created successfully');
+    
+    // Read and execute data file
+    const dataPath = path.join(__dirname, 'dataentryes.sql');
+    const dataSQL = fs.readFileSync(dataPath, 'utf8');
+    await executeSQL(dataSQL, 'Sample data inserted successfully');
+  } catch (error) {
+    console.error('Initialization failed:', error);
+  }
 });
+
+// Helper function to execute SQL queries
+function executeSQL(sql, successMessage) {
+  return new Promise((resolve, reject) => {
+    // Split SQL file into individual queries
+    const queries = sql.split(';').filter(q => q.trim() !== '');
+    
+    // Execute queries sequentially
+    const executeNext = (index) => {
+      if (index >= queries.length) {
+        console.log(successMessage);
+        return resolve();
+      }
+
+      db.query(queries[index], (err, results) => {
+        if (err) return reject(err);
+        executeNext(index + 1);
+      });
+    };
+
+    executeNext(0);
+  });
+}
+
+
+
 
 // Serve HTML on root URL
 app.get('/', (req, res) => {
@@ -27,6 +103,8 @@ app.get('/', (req, res) => {
 // Insert Doctor
 app.post('/addDoctor', (req, res) => {
   const { DoctorName, Department, Category } = req.body;
+  console.log(req.body)
+
   const sql = 'INSERT INTO Doctor (DoctorName, Department, Category) VALUES (?, ?, ?)';
   db.query(sql, [DoctorName, Department, Category], (err, result) => {
     if (err) throw err;
@@ -146,7 +224,8 @@ app.post('/addBill', (req, res) => {
   });
 });
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  //console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on the PORT:${PORT}`);
 });

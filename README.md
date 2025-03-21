@@ -3,7 +3,9 @@
 This documentation provides an overview of the **Hospital Management System** built using **MySQL** for the database and **Node.js** with **Express** for the backend. The system is designed to manage patients, doctors, rooms, and billing in a hospital setting. Below is a detailed explanation of the database schema, triggers, API endpoints, and frontend functionality.
 
 ---
+### Live Link --> https://dbms-project-sem2.onrender.com/
 
+---
 ## **Database Schema**
 
 ### **Tables**

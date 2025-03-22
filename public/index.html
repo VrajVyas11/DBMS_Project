@@ -213,6 +213,16 @@
         <button onclick="checkRoomAvailability()">Check Availability</button>
         <p id="roomAvailabilityResult"></p>
 
+        <!-- Get Patient Count By Condition -->
+        <h3>Get Patient Count By Condition</h3>
+        <select id="conditionCheck">
+            <option value="Mild">Mild</option>
+            <option value="Moderate">Moderate</option>
+            <option value="Severe">Severe</option>
+        </select>
+        <button onclick="getPatientCountByCondition()">Get Count</button>
+        <p id="patientCountResult"></p>
+
         <!-- Admit Patient -->
         <h3>Admit Patient</h3>
         <input type="text" id="admitPatientId" placeholder="Patient ID" />
@@ -567,6 +577,28 @@
                     alert(data);
                 });
         }
+
+        // Get Patient Count By Condition
+        function getPatientCountByCondition() {
+            const condition = document.getElementById('conditionCheck').value;
+            fetch(`http://localhost:5000/getPatientCountByCondition/${condition}`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    console.log(data); // Debug to check the response format
+                    const count = data?.PatientCount || data[0]?.PatientCount || 0;
+                    document.getElementById('patientCountResult').innerText = `Patient Count: ${count}`;
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    document.getElementById('patientCountResult').innerText = 'Error fetching patient count';
+                });
+        }
+
 
         function clearDoctorFields() {
             document.getElementById('doctorName').value = '';

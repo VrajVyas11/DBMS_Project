@@ -48,7 +48,7 @@ CREATE TABLE Inpatient (
     AdvanceAmount DECIMAL(10,2),
     RoomType VARCHAR(50),
     Status VARCHAR(20), -- ('Admitted', 'Discharged')
-    FOREIGN KEY (PatientID) REFERENCES Patient(PatientID),
+    FOREIGN KEY (PatientID) REFERENCES Patient(PatientID) ON DELETE CASCADE,
     FOREIGN KEY (RoomNo) REFERENCES Room(RoomNo)
 );
 
@@ -59,7 +59,7 @@ CREATE TABLE Outpatient (
     DoctorID INT,
     ConsultationDate DATE,
     AdvanceAmount DECIMAL(10,2),
-    FOREIGN KEY (PatientID) REFERENCES Patient(PatientID),
+    FOREIGN KEY (PatientID) REFERENCES Patient(PatientID) ON DELETE CASCADE,
     FOREIGN KEY (DoctorID) REFERENCES Doctor(DoctorID)
 );
 
@@ -87,7 +87,7 @@ CREATE TABLE Bill (
     NumberOfDaysStayed INT,
     PatientType VARCHAR(20),
     BillDate DATE,
-    FOREIGN KEY (PatientID) REFERENCES Patient(PatientID)
+    FOREIGN KEY (PatientID) REFERENCES Patient(PatientID) ON DELETE CASCADE
 );
 
 -- Discharge Log Table
@@ -164,17 +164,6 @@ BEGIN
     RETURN patient_count;
 END $$
 
--- Function 4: Get total number of rooms
-CREATE FUNCTION GetTotalRooms() 
-RETURNS INT
-DETERMINISTIC
-BEGIN
-    DECLARE total_rooms INT;
-    SELECT COUNT(*) INTO total_rooms
-    FROM Room;
-    RETURN total_rooms;
-END $$
-
 -- Procedure 1: Admit a patient to the hospital as an inpatient
 CREATE PROCEDURE AdmitPatient(
     IN patient_id INT,
@@ -212,29 +201,29 @@ BEGIN
     WHERE PatientID = patient_id;
 END $$
 
--- Procedure 2: Discharge a patient and update the room status
-CREATE PROCEDURE DischargePatient(
-    IN patient_id INT,
-    IN discharge_date DATE
-)
-BEGIN
-    DECLARE room_no INT;
+-- -- Procedure 2: Discharge a patient and update the room status
+-- CREATE PROCEDURE DischargePatient(
+--     IN patient_id INT,
+--     IN discharge_date DATE
+-- )
+-- BEGIN
+--     DECLARE room_no INT;
 
-    -- Get the room number the patient is occupying
-    SELECT RoomNo INTO room_no
-    FROM Inpatient
-    WHERE PatientID = patient_id AND Status = 'Admitted';
+--     -- Get the room number the patient is occupying
+--     SELECT RoomNo INTO room_no
+--     FROM Inpatient
+--     WHERE PatientID = patient_id AND Status = 'Admitted';
 
-    -- Discharge the patient
-    UPDATE Inpatient
-    SET Status = 'Discharged', DateOfDischarge = discharge_date
-    WHERE PatientID = patient_id;
+--     -- Discharge the patient
+--     UPDATE Inpatient
+--     SET Status = 'Discharged', DateOfDischarge = discharge_date
+--     WHERE PatientID = patient_id;
 
-    -- Update the room status to available
-    UPDATE Room
-    SET Status = 'Available'
-    WHERE RoomNo = room_no;
-END $$
+--     -- Update the room status to available
+--     UPDATE Room
+--     SET Status = 'Available'
+--     WHERE RoomNo = room_no;
+-- END $$
 
 -- Procedure 3: Update patient information
 CREATE PROCEDURE UpdatePatientInfo(
@@ -259,14 +248,14 @@ BEGIN
     WHERE PatientID = patient_id;
 END $$
 
--- Procedure 4: Get all bills for a patient
-CREATE PROCEDURE GetAllBillsForPatient(
-    IN patient_id INT
-)
-BEGIN
-    SELECT * FROM Bill
-    WHERE PatientID = patient_id;
-END $$
+-- -- Procedure 4: Get all bills for a patient
+-- CREATE PROCEDURE GetAllBillsForPatient(
+--     IN patient_id INT
+-- )
+-- BEGIN
+--     SELECT * FROM Bill
+--     WHERE PatientID = patient_id;
+-- END $$
 
 -- Trigger to categorize doctors after insertion into Doctor table
 CREATE TRIGGER After_Doctor_Insert
@@ -328,7 +317,7 @@ BEGIN
     END IF;
 END $$
 
--- Trigger to update Room status after patient discharge
+-- Combined trigger to update Room status and log patient discharge
 CREATE TRIGGER After_Inpatient_Discharge
 AFTER UPDATE ON Inpatient
 FOR EACH ROW
@@ -338,18 +327,12 @@ BEGIN
         UPDATE Room
         SET Status = 'Available'
         WHERE RoomNo = NEW.RoomNo;
-    END IF;
-END $$
 
--- Trigger to log patient discharge
-CREATE TRIGGER After_Patient_Discharge
-AFTER UPDATE ON Inpatient
-FOR EACH ROW
-BEGIN
-    IF NEW.Status = 'Discharged' THEN
+        -- Log patient discharge
         INSERT INTO DischargeLog (PatientID, DischargeDate)
         VALUES (NEW.PatientID, NEW.DateOfDischarge);
     END IF;
 END $$
+
 
 DELIMITER ;

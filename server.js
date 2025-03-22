@@ -109,6 +109,20 @@ app.delete('/deleteDoctor/:id', (req, res) => {
   });
 });
 
+
+// Delete Patient
+app.delete('/deletePatient/:id', (req, res) => {
+  const { id } = req.params;
+  const sql = 'DELETE FROM Patient WHERE PatientID = ?';
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error deleting doctor');
+    }
+    res.send('Patient deleted successfully');
+  });
+});
+
 // Add Patient
 app.post('/addPatient', (req, res) => {
   const { FirstName, LastName, Age, Address, Disease, Gender, PatientCondition } = req.body;
@@ -317,6 +331,19 @@ process.on('SIGINT', () => {
     }
     console.log('Database connection closed.');
     process.exit(0);
+  });
+});
+
+// Get Patient Count by Condition
+app.get('/getPatientCountByCondition/:condition', (req, res) => {
+  const { condition } = req.params;
+  const sql = 'SELECT GetPatientCountByCondition(?) AS PatientCount';
+  db.query(sql, [condition], (err, results) => {
+      if (err) {
+          console.error(err);
+          return res.status(500).send('Error fetching patient count by condition');
+      }
+      res.json(results[0] || { PatientCount: 0 });
   });
 });
 

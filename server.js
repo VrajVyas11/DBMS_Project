@@ -1,99 +1,34 @@
 const express = require('express');
-//const mysql = require('mysql');
-const mysql = require('mysql2');
+const mysql = require('mysql');
 const bodyParser = require('body-parser');
 const path = require('path');
-const fs = require('fs');
 require('dotenv').config();
-
 
 const app = express();
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// =================================================
-//
-//                    For Dev
-//
-//  =================================================
 // const db = mysql.createConnection({
-//   host: 'localhost',
-//   user: 'root',
-//   password: 'Vyasvraj@92',
-//   database: 'HospitalDB',
+//   host: process.env.DB_HOST,
+//   user: process.env.DB_USER,
+//   password: process.env.DB_PASSWORD,
+//   database: process.env.DB_NAME,
 // });
-
-// db.connect(err => {
-//   if (err) throw err;
-//   console.log('MySQL Connected...');
-// });
-
-// =============================================================
-// 
-//              Production 
-// 
-// =============================================================
-
 
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  ssl: {
-    ca: process.env.SSL_CERT_PATH
-  },
-  multipleStatements: true
 });
 
-db.connect(async (err) => {
+db.connect(async err => {
   if (err) {
-    console.error('Error connecting to MySQL:', err);
+    console.error('MySQL connection error:', err);
     return;
   }
-  console.log('MySQL Connected to Aiven...');
-
-  try {
-    // Read and execute schema file
-    const schemaPath = path.join(__dirname, 'HMSDB_Production.sql');
-    const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
-    await executeSQL(schemaSQL, 'Database schema created successfully');
-    
-    // Read and execute data file
-    const dataPath = path.join(__dirname, 'dataentryes.sql');
-    const dataSQL = fs.readFileSync(dataPath, 'utf8');
-    await executeSQL(dataSQL, 'Sample data inserted successfully');
-  } catch (error) {
-    console.error('Initialization failed:', error);
-  }
+  console.log('MySQL Connected...');
 });
-
-// Helper function to execute SQL queries
-function executeSQL(sql, successMessage) {
-  return new Promise((resolve, reject) => {
-    // Split SQL file into individual queries
-    const queries = sql.split(';').filter(q => q.trim() !== '');
-    
-    // Execute queries sequentially
-    const executeNext = (index) => {
-      if (index >= queries.length) {
-        console.log(successMessage);
-        return resolve();
-      }
-
-      db.query(queries[index], (err, results) => {
-        if (err) return reject(err);
-        executeNext(index + 1);
-      });
-    };
-
-    executeNext(0);
-  });
-}
-
-
-
 
 // Serve HTML on root URL
 app.get('/', (req, res) => {
@@ -103,11 +38,12 @@ app.get('/', (req, res) => {
 // Insert Doctor
 app.post('/addDoctor', (req, res) => {
   const { DoctorName, Department, Category } = req.body;
-  console.log(req.body)
-
   const sql = 'INSERT INTO Doctor (DoctorName, Department, Category) VALUES (?, ?, ?)';
   db.query(sql, [DoctorName, Department, Category], (err, result) => {
-    if (err) throw err;
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error adding doctor');
+    }
     res.send('Doctor added successfully');
   });
 });
@@ -116,7 +52,10 @@ app.post('/addDoctor', (req, res) => {
 app.get('/getDoctors', (req, res) => {
   const sql = 'SELECT * FROM Doctor';
   db.query(sql, (err, results) => {
-    if (err) throw err;
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error fetching doctors');
+    }
     res.json(results);
   });
 });
@@ -125,7 +64,10 @@ app.get('/getDoctors', (req, res) => {
 app.get('/getPermanentDoctors', (req, res) => {
   const sql = 'SELECT * FROM Permanent_Doctor';
   db.query(sql, (err, results) => {
-    if (err) throw err;
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error fetching permanent doctors');
+    }
     res.json(results);
   });
 });
@@ -134,7 +76,10 @@ app.get('/getPermanentDoctors', (req, res) => {
 app.get('/getVisitingDoctors', (req, res) => {
   const sql = 'SELECT * FROM Visiting_Doctor';
   db.query(sql, (err, results) => {
-    if (err) throw err;
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error fetching visiting doctors');
+    }
     res.json(results);
   });
 });
@@ -143,7 +88,10 @@ app.get('/getVisitingDoctors', (req, res) => {
 app.get('/getTraineeDoctors', (req, res) => {
   const sql = 'SELECT * FROM Trainee_Doctor';
   db.query(sql, (err, results) => {
-    if (err) throw err;
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error fetching trainee doctors');
+    }
     res.json(results);
   });
 });
@@ -153,17 +101,23 @@ app.delete('/deleteDoctor/:id', (req, res) => {
   const { id } = req.params;
   const sql = 'DELETE FROM Doctor WHERE DoctorID = ?';
   db.query(sql, [id], (err, result) => {
-    if (err) throw err;
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error deleting doctor');
+    }
     res.send('Doctor deleted successfully');
   });
 });
 
 // Add Patient
 app.post('/addPatient', (req, res) => {
-  const { PatientName, Age, Address, Disease, Gender } = req.body;
-  const sql = 'INSERT INTO Patient (Name, Age, Address, Disease, Gender) VALUES (?, ?, ?, ?, ?)';
-  db.query(sql, [PatientName, Age, Address, Disease, Gender], (err, result) => {
-    if (err) throw err;
+  const { FirstName, LastName, Age, Address, Disease, Gender, PatientCondition } = req.body;
+  const sql = 'INSERT INTO Patient (FirstName, LastName, Age, Address, Disease, Gender, PatientCondition) VALUES (?, ?, ?, ?, ?, ?, ?)';
+  db.query(sql, [FirstName, LastName, Age, Address, Disease, Gender, PatientCondition], (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error adding patient');
+    }
     res.send('Patient added successfully');
   });
 });
@@ -172,7 +126,10 @@ app.post('/addPatient', (req, res) => {
 app.get('/getPatients', (req, res) => {
   const sql = 'SELECT * FROM Patient';
   db.query(sql, (err, results) => {
-    if (err) throw err;
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error fetching patients');
+    }
     res.json(results);
   });
 });
@@ -181,7 +138,10 @@ app.get('/getPatients', (req, res) => {
 app.get('/getInpatients', (req, res) => {
   const sql = 'SELECT * FROM Inpatient INNER JOIN Patient ON Inpatient.PatientID = Patient.PatientID';
   db.query(sql, (err, results) => {
-    if (err) throw err;
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error fetching inpatients');
+    }
     res.json(results);
   });
 });
@@ -190,7 +150,10 @@ app.get('/getInpatients', (req, res) => {
 app.get('/getOutpatients', (req, res) => {
   const sql = 'SELECT * FROM Outpatient INNER JOIN Patient ON Outpatient.PatientID = Patient.PatientID';
   db.query(sql, (err, results) => {
-    if (err) throw err;
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error fetching outpatients');
+    }
     res.json(results);
   });
 });
@@ -199,7 +162,10 @@ app.get('/getOutpatients', (req, res) => {
 app.get('/getRooms', (req, res) => {
   const sql = 'SELECT * FROM Room';
   db.query(sql, (err, results) => {
-    if (err) throw err;
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error fetching rooms');
+    }
     res.json(results);
   });
 });
@@ -209,7 +175,10 @@ app.put('/dischargePatient/:id', (req, res) => {
   const { id } = req.params;
   const sql = 'UPDATE Inpatient SET Status = "Discharged" WHERE PatientID = ?';
   db.query(sql, [id], (err, result) => {
-    if (err) throw err;
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error discharging patient');
+    }
     res.send('Patient discharged and room status updated');
   });
 });
@@ -219,13 +188,139 @@ app.post('/addBill', (req, res) => {
   const { PatientID, RoomCharges, LabCharges, OperationCharges, MedicineCharges } = req.body;
   const sql = 'INSERT INTO Bill (PatientID, RoomCharges, LabCharges, OperationCharges, MedicineCharges) VALUES (?, ?, ?, ?, ?)';
   db.query(sql, [PatientID, RoomCharges, LabCharges, OperationCharges, MedicineCharges], (err, result) => {
-    if (err) throw err;
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error generating bill');
+    }
     res.send('Bill generated successfully');
   });
 });
 
-const PORT = process.env.PORT || 5000;
+// Calculate Total Bill for a Patient
+app.get('/calculateTotalBill/:patientId', (req, res) => {
+  const { patientId } = req.params;
+  if (isNaN(patientId)) {
+    return res.status(400).send('Invalid patient ID');
+  }
+  const sql = 'SELECT CalculateTotalBill(?) AS TotalBill';
+  db.query(sql, [patientId], (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error calculating total bill');
+    }
+    res.json(results[0]);
+  });
+});
+
+// Check if a Room is Available
+app.get('/isRoomAvailable/:roomType', (req, res) => {
+  const { roomType } = req.params;
+  const sql = 'SELECT IsRoomAvailable(?) AS IsAvailable';
+  db.query(sql, [roomType], (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error checking room availability');
+    }
+    res.json(results[0]);
+  });
+});
+
+// Admit a Patient as Inpatient
+app.post('/admitPatient', (req, res) => {
+  const { patientId, roomType, advanceAmount } = req.body;
+  const sql = 'CALL AdmitPatient(?, ?, ?)';
+  db.query(sql, [patientId, roomType, advanceAmount], (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error admitting patient');
+    }
+    res.send('Patient admitted successfully');
+  });
+});
+
+// Discharge a Patient
+app.put('/dischargePatient/:patientId', (req, res) => {
+  const { patientId } = req.params;
+  const { dischargeDate } = req.body;
+  const sql = 'CALL DischargePatient(?, ?)';
+  db.query(sql, [patientId, dischargeDate], (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Error discharging patient');
+    }
+    res.send('Patient discharged successfully');
+  });
+});
+
+// Update Patient Info
+app.put('/updatePatientInfo', (req, res) => {
+  const { patientId, firstName, lastName, address, age, gender, disease, condition } = req.body;
+
+  // Build the SQL update query dynamically based on provided fields
+  let sql = 'UPDATE Patient SET ';
+  const updates = [];
+  const params = [];
+
+  if (firstName) {
+      updates.push('FirstName = ?');
+      params.push(firstName);
+  }
+  if (lastName) {
+      updates.push('LastName = ?');
+      params.push(lastName);
+  }
+  if (address) {
+      updates.push('Address = ?');
+      params.push(address);
+  }
+  if (age) {
+      updates.push('Age = ?');
+      params.push(age);
+  }
+  if (gender) {
+      updates.push('Gender = ?');
+      params.push(gender);
+  }
+  if (disease) {
+      updates.push('Disease = ?');
+      params.push(disease);
+  }
+  if (condition) {
+      updates.push('PatientCondition = ?');
+      params.push(condition);
+  }
+
+  // Ensure that at least one field is provided for update
+  if (updates.length === 0) {
+      return res.status(400).send('No fields provided for update.');
+  }
+
+  // Add the WHERE clause
+  sql += updates.join(', ') + ' WHERE PatientID = ?';
+  params.push(patientId);
+
+  db.query(sql, params, (err, result) => {
+      if (err) {
+          console.error(err);
+          return res.status(500).send('Error updating patient information');
+      }
+      res.send('Patient information updated successfully');
+  });
+});
+
+
+// Cleanup on exit
+process.on('SIGINT', () => {
+  db.end(err => {
+    if (err) {
+      console.error('Error closing the database connection:', err);
+    }
+    console.log('Database connection closed.');
+    process.exit(0);
+  });
+});
+
+const PORT = process.env.DB_PORT || 5000;
 app.listen(PORT, () => {
-  //console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Server running on the PORT:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

@@ -12,23 +12,55 @@
         }
 
         .container {
-            width: 60%;
+            width: 70%;
             margin: 50px auto;
             background: white;
-            padding: 20px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
 
         h2 {
             text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        h3 {
+            color: #4CAF50;
+            margin-top: 20px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 5px;
         }
 
         input,
         select,
         button {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #4CAF50;
+            outline: none;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
         }
 
         table {
@@ -39,20 +71,26 @@
 
         th,
         td {
-            padding: 10px;
+            padding: 12px;
             border: 1px solid #ddd;
             text-align: center;
+            background-color: #f9f9f9;
         }
 
-        button {
+        th {
             background-color: #4CAF50;
             color: white;
-            border: none;
-            cursor: pointer;
         }
 
-        button:hover {
-            background-color: #45a049;
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .alert {
+            color: red;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -94,12 +132,13 @@
 
         <!-- Add Patient -->
         <h3>Add Patient</h3>
-        <input type="text" id="patientName" placeholder="Patient Name" />
+        <input type="text" id="patientFirstName" placeholder="Patient First Name" />
+        <input type="text" id="patientLastName" placeholder="Patient Last Name" />
         <input type="text" id="age" placeholder="Age" />
         <input type="text" id="address" placeholder="Address" />
         <input type="text" id="disease" placeholder="Disease" />
         <input type="text" id="gender" placeholder="Gender" />
-        <select id="condition">
+        <select id="PatientCondition">
             <option value="Mild">Mild</option>
             <option value="Moderate">Moderate</option>
             <option value="Severe">Severe</option>
@@ -121,7 +160,7 @@
                     <th>Address</th>
                     <th>Disease</th>
                     <th>Gender</th>
-                    <th>Condition</th>
+                    <th>Patient Condition</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -161,6 +200,47 @@
         <input type="text" id="operationCharges" placeholder="Operation Charges" />
         <input type="text" id="medicineCharges" placeholder="Medicine Charges" />
         <button onclick="generateBill()">Generate Bill</button>
+
+        <!-- Calculate Total Bill -->
+        <h3>Calculate Total Bill</h3>
+        <input type="text" id="calculateBillPatientId" placeholder="Patient ID" />
+        <button onclick="calculateTotalBill()">Calculate Bill</button>
+        <p id="totalBillResult"></p>
+
+        <!-- Check Room Availability -->
+        <h3>Check Room Availability</h3>
+        <input type="text" id="roomTypeCheck" placeholder="Room Type" />
+        <button onclick="checkRoomAvailability()">Check Availability</button>
+        <p id="roomAvailabilityResult"></p>
+
+        <!-- Admit Patient -->
+        <h3>Admit Patient</h3>
+        <input type="text" id="admitPatientId" placeholder="Patient ID" />
+        <input type="text" id="admitRoomType" placeholder="Room Type" />
+        <input type="text" id="admitAdvanceAmount" placeholder="Advance Amount" />
+        <button onclick="admitPatient()">Admit Patient</button>
+
+        <!-- Discharge Patient -->
+        <h3>Discharge Patient</h3>
+        <input type="text" id="dischargePatientId" placeholder="Patient ID" />
+        <input type="text" id="dischargeDate" placeholder="Discharge Date (YYYY-MM-DD)" />
+        <button onclick="dischargePatient()">Discharge Patient</button>
+
+        <!-- Update Patient Info -->
+        <h3>Update Patient Info</h3>
+        <input type="text" id="updatePatientId" placeholder="Patient ID" />
+        <input type="text" id="updateFirstName" placeholder="First Name" />
+        <input type="text" id="updateLastName" placeholder="Last Name" />
+        <input type="text" id="updateAddress" placeholder="Address" />
+        <input type="text" id="updateAge" placeholder="Age" />
+        <input type="text" id="updateGender" placeholder="Gender" />
+        <input type="text" id="updateDisease" placeholder="Disease" />
+        <select id="updateCondition">
+            <option value="Mild">Mild</option>
+            <option value="Moderate">Moderate</option>
+            <option value="Severe">Severe</option>
+        </select>
+        <button onclick="updatePatientInfo()">Update Patient Info</button>
     </div>
 
     <script>
@@ -236,17 +316,18 @@
         }
 
         function addPatient() {
-            const patientName = document.getElementById('patientName').value;
+            const patientFirstName = document.getElementById('patientFirstName').value;
+            const patientLastName = document.getElementById('patientLastName').value;
             const age = document.getElementById('age').value;
             const address = document.getElementById('address').value;
             const disease = document.getElementById('disease').value;
             const gender = document.getElementById('gender').value;
-            const condition = document.getElementById('condition').value;
+            const PatientCondition = document.getElementById('PatientCondition').value;
 
             fetch('http://localhost:5000/addPatient', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ PatientName: patientName, Age: age, Address: address, Disease: disease, Gender: gender, Condition: condition })
+                body: JSON.stringify({ FirstName: patientFirstName.trim(), LastName: patientLastName.trim(), Age: age, Address: address, Disease: disease, Gender: gender, PatientCondition: PatientCondition })
             })
                 .then(res => res.text())
                 .then(data => {
@@ -265,12 +346,12 @@
                         tableBody.innerHTML += `
           <tr>
             <td>${patient.PatientID}</td>
-            <td>${patient.Name}</td>
+            <td>${patient.FirstName} ${patient.LastName}</td>
             <td>${patient.Age}</td>
             <td>${patient.Address}</td>
             <td>${patient.Disease}</td>
             <td>${patient.Gender}</td>
-            <td>${patient.Condition}</td>
+            <td>${patient.PatientCondition}</td>
             <td><button onclick="deletePatient(${patient.PatientID})">Delete</button></td>
           </tr>
         `;
@@ -288,7 +369,7 @@
                         tableBody.innerHTML += `
           <tr>
             <td>${patient.PatientID}</td>
-            <td>${patient.Name}</td>
+            <td>${patient.FirstName} ${patient.LastName}</td>
             <td>${patient.Age}</td>
             <td>${patient.Address}</td>
             <td>${patient.Disease}</td>
@@ -316,7 +397,7 @@
                         tableBody.innerHTML += `
           <tr>
                <td>${patient.PatientID}</td>
-            <td>${patient.Name}</td>
+            <td>${patient.FirstName} ${patient.LastName}</td>
             <td>${patient.Age}</td>
             <td>${patient.Address}</td>
             <td>${patient.Disease}</td>
@@ -399,6 +480,94 @@
                 });
         }
 
+        // Calculate Total Bill
+        function calculateTotalBill() {
+            const patientId = document.getElementById('calculateBillPatientId').value;
+            fetch(`http://localhost:5000/calculateTotalBill/${patientId}`)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('totalBillResult').innerText = `Total Bill: $${data.TotalBill}`;
+                });
+        }
+
+        // Check Room Availability
+        function checkRoomAvailability() {
+            const roomType = document.getElementById('roomTypeCheck').value;
+            fetch(`http://localhost:5000/isRoomAvailable/${roomType}`)
+                .then(res => res.json())
+                .then(data => {
+                    const isAvailable = data.IsAvailable ? 'Available' : 'Not Available';
+                    document.getElementById('roomAvailabilityResult').innerText = `Room Availability: ${isAvailable}`;
+                });
+        }
+
+        // Admit Patient
+        function admitPatient() {
+            const patientId = document.getElementById('admitPatientId').value;
+            const roomType = document.getElementById('admitRoomType').value;
+            const advanceAmount = document.getElementById('admitAdvanceAmount').value;
+
+            fetch('http://localhost:5000/admitPatient', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ patientId, roomType, advanceAmount })
+            })
+                .then(res => res.text())
+                .then(data => {
+                    alert(data);
+                });
+        }
+
+        // Discharge Patient
+        function dischargePatient() {
+            const patientId = document.getElementById('dischargePatientId').value;
+            const dischargeDate = document.getElementById('dischargeDate').value;
+
+            fetch(`http://localhost:5000/dischargePatient/${patientId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dischargeDate })
+            })
+                .then(res => res.text())
+                .then(data => {
+                    alert(data);
+                });
+        }
+
+        // Update Patient Info
+        function updatePatientInfo() {
+            const patientId = document.getElementById('updatePatientId').value;
+            const firstName = document.getElementById('updateFirstName').value;
+            const lastName = document.getElementById('updateLastName').value;
+            const address = document.getElementById('updateAddress').value;
+            const age = document.getElementById('updateAge').value;
+            const gender = document.getElementById('updateGender').value;
+            const disease = document.getElementById('updateDisease').value;
+            const PatientCondition = document.getElementById('updateCondition').value;
+
+            // Prepare the update object, only include fields that are provided
+            const updateData = {
+                patientId,
+                ...(firstName && { firstName }),
+                ...(lastName && { lastName }),
+                ...(address && { address }),
+                ...(age && { age }),
+                ...(gender && { gender }),
+                ...(disease && { disease }),
+                ...(PatientCondition && { PatientCondition })
+            };
+
+            fetch(`http://localhost:5000/updatePatientInfo`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updateData)
+            })
+                .then(res => res.text())
+                .then(data => {
+                    alert(data);
+                });
+        }
+
         function clearDoctorFields() {
             document.getElementById('doctorName').value = '';
             document.getElementById('department').value = '';
@@ -406,12 +575,13 @@
         }
 
         function clearPatientFields() {
-            document.getElementById('patientName').value = '';
+            document.getElementById('patientFirstName').value = '';
+            document.getElementById('patientLastName').value = '';
             document.getElementById('age').value = '';
             document.getElementById('address').value = '';
             document.getElementById('disease').value = '';
             document.getElementById('gender').value = '';
-            document.getElementById('condition').value = 'Mild'; // Reset condition to default
+            document.getElementById('PatientCondition').value = 'Mild'; // Reset PatientCondition to default
         }
     </script>
 

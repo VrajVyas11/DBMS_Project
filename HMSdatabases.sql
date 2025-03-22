@@ -8,14 +8,14 @@ CREATE TABLE Patient (
     PatientID INT PRIMARY KEY AUTO_INCREMENT,
     FirstName VARCHAR(50),
     LastName VARCHAR(50),
-    Name VARCHAR(100),
     Address VARCHAR(255),
     Age INT,
     Gender VARCHAR(10),
     Disease VARCHAR(100),
-    `Condition` VARCHAR(50) -- ('Mild', 'Moderate', 'Severe')
+    PatientCondition VARCHAR(50) -- Changed from `Condition` to `PatientCondition`
 );
 
+-- Room Log Table
 CREATE TABLE RoomLog (
     LogID INT AUTO_INCREMENT PRIMARY KEY,
     RoomNo INT,
@@ -90,6 +90,14 @@ CREATE TABLE Bill (
     FOREIGN KEY (PatientID) REFERENCES Patient(PatientID)
 );
 
+-- Discharge Log Table
+CREATE TABLE DischargeLog (
+    LogID INT PRIMARY KEY AUTO_INCREMENT,
+    PatientID INT,
+    DischargeDate DATE,
+    FOREIGN KEY (PatientID) REFERENCES Patient(PatientID)
+);
+
 -- Permanent, Trainee, and Visiting Doctor Tables
 CREATE TABLE Permanent_Doctor (
     Doctorid INT PRIMARY KEY,
@@ -114,6 +122,152 @@ CREATE TABLE Visiting_Doctor (
 
 DELIMITER $$
 
+-- Function 1: Calculate the total bill amount for a patient
+CREATE FUNCTION CalculateTotalBill(patient_id INT) RETURNS DECIMAL(10,2)
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE total DECIMAL(10,2);
+    
+    SELECT IFNULL(SUM(RoomCharges + LabCharges + OperationCharges + MedicineCharges), 0)
+    INTO total
+    FROM Bill
+    WHERE PatientID = patient_id;
+    
+    RETURN total;
+END $$
+
+-- Function 2: Check if a room is available for a given room type
+CREATE FUNCTION IsRoomAvailable(room_type VARCHAR(50)) RETURNS BOOLEAN
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE available BOOLEAN;
+    
+    SELECT COUNT(*) > 0
+    INTO available
+    FROM Room
+    WHERE RoomType = room_type AND Status = 'Available';
+    
+    RETURN available;
+END $$
+
+-- Function 3: Get patient count by condition
+CREATE FUNCTION GetPatientCountByCondition(`condition` VARCHAR(50)) 
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE patient_count INT;
+    SELECT COUNT(*) INTO patient_count
+    FROM Patient
+    WHERE PatientCondition = `condition`; -- Updated to use PatientCondition
+    RETURN patient_count;
+END $$
+
+-- Function 4: Get total number of rooms
+CREATE FUNCTION GetTotalRooms() 
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE total_rooms INT;
+    SELECT COUNT(*) INTO total_rooms
+    FROM Room;
+    RETURN total_rooms;
+END $$
+
+-- Procedure 1: Admit a patient to the hospital as an inpatient
+CREATE PROCEDURE AdmitPatient(
+    IN patient_id INT,
+    IN room_type VARCHAR(50),
+    IN advance_amount DECIMAL(10,2)
+)
+BEGIN
+    DECLARE available_room INT;
+    DECLARE room_charges DECIMAL(10,2);
+
+    -- Check if a room is available
+    IF NOT IsRoomAvailable(room_type) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No available rooms for the specified room type.';
+    END IF;
+
+    -- Find an available room
+    SELECT RoomNo, Charges INTO available_room, room_charges
+    FROM Room
+    WHERE RoomType = room_type AND Status = 'Available'
+    LIMIT 1;
+
+    -- Admit the patient
+    INSERT INTO Inpatient (PatientID, RoomNo, DateOfAdmission, DateOfDischarge, AdvanceAmount, RoomType, Status)
+    VALUES (patient_id, available_room, CURDATE(), NULL, advance_amount, room_type, 'Admitted');
+
+    -- Update the room status
+    UPDATE Room
+    SET Status = 'Occupied'
+    WHERE RoomNo = available_room;
+
+    -- Update the bill with room charges
+    UPDATE Bill
+    SET RoomCharges = room_charges, PatientType = 'Inpatient'
+    WHERE PatientID = patient_id;
+END $$
+
+-- Procedure 2: Discharge a patient and update the room status
+CREATE PROCEDURE DischargePatient(
+    IN patient_id INT,
+    IN discharge_date DATE
+)
+BEGIN
+    DECLARE room_no INT;
+
+    -- Get the room number the patient is occupying
+    SELECT RoomNo INTO room_no
+    FROM Inpatient
+    WHERE PatientID = patient_id AND Status = 'Admitted';
+
+    -- Discharge the patient
+    UPDATE Inpatient
+    SET Status = 'Discharged', DateOfDischarge = discharge_date
+    WHERE PatientID = patient_id;
+
+    -- Update the room status to available
+    UPDATE Room
+    SET Status = 'Available'
+    WHERE RoomNo = room_no;
+END $$
+
+-- Procedure 3: Update patient information
+CREATE PROCEDURE UpdatePatientInfo(
+    IN patient_id INT,
+    IN first_name VARCHAR(50),
+    IN last_name VARCHAR(50),
+    IN address VARCHAR(255),
+    IN age INT,
+    IN gender VARCHAR(10),
+    IN disease VARCHAR(100),
+    IN `condition` VARCHAR(50)
+)
+BEGIN
+    UPDATE Patient
+    SET FirstName = first_name,
+        LastName = last_name,
+        Address = address,
+        Age = age,
+        Gender = gender,
+        Disease = disease,
+        PatientCondition = `condition` -- Updated to use PatientCondition
+    WHERE PatientID = patient_id;
+END $$
+
+-- Procedure 4: Get all bills for a patient
+CREATE PROCEDURE GetAllBillsForPatient(
+    IN patient_id INT
+)
+BEGIN
+    SELECT * FROM Bill
+    WHERE PatientID = patient_id;
+END $$
+
 -- Trigger to categorize doctors after insertion into Doctor table
 CREATE TRIGGER After_Doctor_Insert
 AFTER INSERT ON Doctor
@@ -131,6 +285,7 @@ BEGIN
     END IF;
 END $$
 
+-- Trigger to handle patient insertion
 CREATE TRIGGER After_Patient_Insert
 AFTER INSERT ON Patient
 FOR EACH ROW
@@ -142,7 +297,7 @@ BEGIN
     INSERT INTO Bill (PatientID, RoomCharges, LabCharges, OperationCharges, MedicineCharges, TotalBillAmount, HealthCardApplicable, NumberOfDaysStayed, PatientType, BillDate)
     VALUES (NEW.PatientID, 0.00, 0.00, 0.00, 0.00, 0.00, FALSE, 0, 'Outpatient', CURDATE());
 
-    IF NEW.Condition = 'Severe' THEN
+    IF NEW.PatientCondition = 'Severe' THEN -- Updated to use PatientCondition
         SELECT RoomNo, RoomType, Charges INTO available_room, room_type, room_charges
         FROM Room
         WHERE Status = 'Available'
@@ -173,7 +328,6 @@ BEGIN
     END IF;
 END $$
 
-
 -- Trigger to update Room status after patient discharge
 CREATE TRIGGER After_Inpatient_Discharge
 AFTER UPDATE ON Inpatient
@@ -187,25 +341,15 @@ BEGIN
     END IF;
 END $$
 
--- Trigger to calculate total bill after inserting LabReport or Inpatient
-CREATE TRIGGER After_Bill_Insert
-AFTER INSERT ON Bill
+-- Trigger to log patient discharge
+CREATE TRIGGER After_Patient_Discharge
+AFTER UPDATE ON Inpatient
 FOR EACH ROW
 BEGIN
-    DECLARE room_charges DECIMAL(10,2);
-    DECLARE lab_charges DECIMAL(10,2);
-    DECLARE operation_charges DECIMAL(10,2);
-    DECLARE medicine_charges DECIMAL(10,2);
-    DECLARE total DECIMAL(10,2);
-    
-    SET room_charges = IFNULL(NEW.RoomCharges, 0);
-    SET lab_charges = IFNULL(NEW.LabCharges, 0);
-    SET operation_charges = IFNULL(NEW.OperationCharges, 0);
-    SET medicine_charges = IFNULL(NEW.MedicineCharges, 0);
-    
-    SET total = room_charges + lab_charges + operation_charges + medicine_charges;
-
-    -- No need to update the Bill table here; calculate total in application logic
+    IF NEW.Status = 'Discharged' THEN
+        INSERT INTO DischargeLog (PatientID, DischargeDate)
+        VALUES (NEW.PatientID, NEW.DateOfDischarge);
+    END IF;
 END $$
 
 DELIMITER ;

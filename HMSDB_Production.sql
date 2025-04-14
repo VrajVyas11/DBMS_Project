@@ -168,7 +168,10 @@ VALUES
 (3, NOW());
 
 
--- -- Triggers   --- Not working in the production 🤔
+-- -- Triggers   --- Working in the production ✅
+## Trigger1
+-- DELIMITER $$
+
 -- CREATE TRIGGER After_Doctor_Insert
 -- AFTER INSERT ON Doctor
 -- FOR EACH ROW
@@ -183,7 +186,12 @@ VALUES
 --         INSERT INTO Trainee_Doctor (Doctorid, Doctor_name, Dept)
 --         VALUES (NEW.DoctorID, NEW.DoctorName, NEW.Department);
 --     END IF;
--- END;
+-- END$$
+
+-- DELIMITER ;
+
+### Trigger2 After_Patient_Insert
+-- DELIMITER $$
 
 -- CREATE TRIGGER After_Patient_Insert
 -- AFTER INSERT ON Patient
@@ -197,56 +205,274 @@ VALUES
 --     INSERT INTO Bill (PatientID, PatientType, BillDate)
 --     VALUES (NEW.PatientID, 'Outpatient', CURRENT_TIMESTAMP);
 
---     IF NEW.`Condition` = 'Severe' THEN
+--     IF NEW.PatientCondition = 'Severe' THEN
 --         -- Find available room
---         SELECT RoomNo, RoomType, Charges INTO available_room, room_type, room_charges
+--         SELECT RoomNo, RoomType, Charges 
+--         INTO available_room, room_type, room_charges
 --         FROM Room
 --         WHERE Status = 'Available'
 --         LIMIT 1;
 
 --         IF available_room IS NOT NULL THEN
 --             -- Update room status
---             UPDATE Room SET Status = 'Occupied' WHERE RoomNo = available_room;
-            
+--             UPDATE Room 
+--             SET Status = 'Occupied' 
+--             WHERE RoomNo = available_room;
+
 --             -- Create inpatient record
---             INSERT INTO Inpatient (PatientID, RoomNo, DateOfAdmission, AdvanceAmount, RoomType, Status)
---             VALUES (NEW.PatientID, available_room, CURDATE(), room_charges, room_type, 'Admitted');
-            
+--             INSERT INTO Inpatient (
+--                 PatientID, RoomNo, DateOfAdmission, AdvanceAmount, RoomType, Status
+--             )
+--             VALUES (
+--                 NEW.PatientID, available_room, CURDATE(), room_charges, room_type, 'Admitted'
+--             );
+
 --             -- Update bill details
---             UPDATE Bill SET 
---                 RoomCharges = room_charges,
+--             UPDATE Bill 
+--             SET RoomCharges = room_charges,
 --                 PatientType = 'Inpatient'
 --             WHERE PatientID = NEW.PatientID;
-            
+
 --             -- Log room assignment
---             INSERT INTO RoomLog (RoomNo) VALUES (available_room);
+--             INSERT INTO RoomLog (RoomNo) 
+--             VALUES (available_room);
 --         ELSE
 --             SIGNAL SQLSTATE '45000'
 --             SET MESSAGE_TEXT = 'No available rooms for severe condition';
 --         END IF;
 --     ELSE
 --         -- Create outpatient record with default doctor (ID 1)
---         INSERT INTO Outpatient (PatientID, DoctorID, ConsultationDate, AdvanceAmount)
---         VALUES (NEW.PatientID, 1, CURDATE(), 0.00);
+--         INSERT INTO Outpatient (
+--             PatientID, DoctorID, ConsultationDate, AdvanceAmount
+--         )
+--         VALUES (
+--             NEW.PatientID, 1, CURDATE(), 0.00
+--         );
 --     END IF;
--- END;
+-- END$$
+
+-- DELIMITER ;
+
+
+### Tigger3 ✅ 1. After_Inpatient_Discharge
+-- DELIMITER $$
 
 -- CREATE TRIGGER After_Inpatient_Discharge
 -- AFTER UPDATE ON Inpatient
 -- FOR EACH ROW
 -- BEGIN
 --     IF NEW.Status = 'Discharged' AND OLD.Status != 'Discharged' THEN
---         UPDATE Room SET Status = 'Available' WHERE RoomNo = OLD.RoomNo;
+--         UPDATE Room 
+--         SET Status = 'Available' 
+--         WHERE RoomNo = OLD.RoomNo;
 --     END IF;
--- END;
+-- END$$
+
+-- DELIMITER ;
+
+### Tigger4 ✅ 2. After_Bill_Update Trigger
+-- DELIMITER $$
 
 -- CREATE TRIGGER After_Bill_Update
 -- BEFORE UPDATE ON Bill
 -- FOR EACH ROW
 -- BEGIN
---     -- Calculate total automatically before any update
---     SET NEW.TotalBillAmount = COALESCE(NEW.RoomCharges, 0) + 
---                             COALESCE(NEW.LabCharges, 0) + 
---                             COALESCE(NEW.OperationCharges, 0) + 
---                             COALESCE(NEW.MedicineCharges, 0);
--- END;
+--     SET NEW.TotalBillAmount = 
+--         COALESCE(NEW.RoomCharges, 0) + 
+--         COALESCE(NEW.LabCharges, 0) + 
+--         COALESCE(NEW.OperationCharges, 0) + 
+--         COALESCE(NEW.MedicineCharges, 0);
+-- END$$
+
+-- DELIMITER ;
+
+
+################################    Functions   ############################
+###-- Function 1: Calculate the total bill amount for a patient
+-- DELIMITER $$
+
+-- CREATE FUNCTION CalculateTotalBill(patient_id INT) 
+-- RETURNS DECIMAL(10,2)
+-- DETERMINISTIC
+-- READS SQL DATA
+-- BEGIN
+--     DECLARE total DECIMAL(10,2);
+    
+--     SELECT IFNULL(SUM(
+--         COALESCE(RoomCharges, 0) +
+--         COALESCE(LabCharges, 0) +
+--         COALESCE(OperationCharges, 0) +
+--         COALESCE(MedicineCharges, 0)
+--     ), 0)
+--     INTO total
+--     FROM Bill
+--     WHERE PatientID = patient_id;
+    
+--     RETURN total;
+-- END$$
+
+-- DELIMITER ;
+
+###-- Function 2: Check if a room is available for a given room type
+-- DELIMITER $$
+
+-- CREATE FUNCTION IsRoomAvailable(room_type VARCHAR(50)) 
+-- RETURNS TINYINT(1)
+-- DETERMINISTIC
+-- READS SQL DATA
+-- BEGIN
+--     DECLARE available TINYINT(1);
+    
+--     SELECT COUNT(*) > 0
+--     INTO available
+--     FROM Room
+--     WHERE RoomType = room_type AND Status = 'Available';
+    
+--     RETURN available;
+-- END$$
+
+-- DELIMITER ;
+
+### -- Function 3: Get patient count by condition
+-- DELIMITER $$
+
+-- CREATE FUNCTION GetPatientCountByCondition(`condition` VARCHAR(50)) 
+-- RETURNS INT
+-- DETERMINISTIC
+-- READS SQL DATA
+-- BEGIN
+--     DECLARE patient_count INT;
+
+--     SELECT COUNT(*) 
+--     INTO patient_count
+--     FROM Patient
+--     WHERE PatientCondition = `condition`;
+
+--     RETURN patient_count;
+-- END$$
+
+-- DELIMITER ;
+
+
+################### --     procedure        --##########################
+-- Procedure 1: Admit a patient to the hospital as an inpatient
+-- DELIMITER $$
+
+-- CREATE PROCEDURE AdmitPatient(
+--     IN patient_id INT,
+--     IN room_type VARCHAR(50),
+--     IN advance_amount DECIMAL(10,2)
+-- )
+-- BEGIN
+--     DECLARE available_room INT;
+--     DECLARE room_charges DECIMAL(10,2);
+
+--     -- Check if a room is available
+--     IF NOT IsRoomAvailable(room_type) THEN
+--         SIGNAL SQLSTATE '45000'
+--         SET MESSAGE_TEXT = 'No available rooms for the specified room type.';
+--     END IF;
+
+--     -- Find an available room
+--     SELECT RoomNo, Charges INTO available_room, room_charges
+--     FROM Room
+--     WHERE RoomType = room_type AND Status = 'Available'
+--     LIMIT 1;
+
+--     -- Admit the patient
+--     INSERT INTO Inpatient (
+--         PatientID, RoomNo, DateOfAdmission, DateOfDischarge,
+--         AdvanceAmount, RoomType, Status
+--     )
+--     VALUES (
+--         patient_id, available_room, CURDATE(), NULL,
+--         advance_amount, room_type, 'Admitted'
+--     );
+
+--     -- Update the room status
+--     UPDATE Room
+--     SET Status = 'Occupied'
+--     WHERE RoomNo = available_room;
+
+--     -- Update the bill with room charges
+--     UPDATE Bill
+--     SET RoomCharges = room_charges,
+--         PatientType = 'Inpatient'
+--     WHERE PatientID = patient_id;
+-- END$$
+
+-- DELIMITER ;
+
+-- Procedure 2: Discharge a patient and update the room status
+-- DELIMITER $$
+
+-- CREATE PROCEDURE DischargePatient(
+--     IN patient_id INT,
+--     IN discharge_date DATE
+-- )
+-- BEGIN
+--     DECLARE room_no INT;
+
+--     -- Get the room number the patient is occupying
+--     SELECT RoomNo INTO room_no
+--     FROM Inpatient
+--     WHERE PatientID = patient_id AND Status = 'Admitted';
+
+--     -- Check if the patient is admitted and the room was found
+--     IF room_no IS NULL THEN
+--         SIGNAL SQLSTATE '45000'
+--         SET MESSAGE_TEXT = 'No admitted patient found with the given PatientID.';
+--     END IF;
+
+--     -- Discharge the patient
+--     UPDATE Inpatient
+--     SET Status = 'Discharged', DateOfDischarge = discharge_date
+--     WHERE PatientID = patient_id;
+
+--     -- Update the room status to available
+--     UPDATE Room
+--     SET Status = 'Available'
+--     WHERE RoomNo = room_no;
+-- END$$
+
+-- DELIMITER ;
+
+-- Procedure 3: Update patient information
+-- DELIMITER $$
+
+-- CREATE PROCEDURE UpdatePatientInfo(
+--     IN patient_id INT,
+--     IN first_name VARCHAR(50),
+--     IN last_name VARCHAR(50),
+--     IN address VARCHAR(255),
+--     IN age INT,
+--     IN gender VARCHAR(10),
+--     IN disease VARCHAR(100),
+--     IN `condition` VARCHAR(50)
+-- )
+-- BEGIN
+--     UPDATE Patient
+--     SET FirstName = first_name,
+--         LastName = last_name,
+--         Address = address,
+--         Age = age,
+--         Gender = gender,
+--         Disease = disease,
+--         PatientCondition = `condition` -- Updated to use PatientCondition
+--     WHERE PatientID = patient_id;
+-- END$$
+
+-- DELIMITER ;
+
+-- Procedure 4: Get all bills for a patient
+-- DELIMITER $$
+
+-- CREATE PROCEDURE GetAllBillsForPatient(
+--     IN patient_id INT
+-- )
+-- BEGIN
+--     SELECT * FROM Bill
+--     WHERE PatientID = patient_id;
+-- END$$
+
+-- DELIMITER ;

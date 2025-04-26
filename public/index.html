@@ -259,7 +259,7 @@
             const department = document.getElementById('department').value;
             const category = document.getElementById('category').value;
 
-            fetch('http://localhost:5000/addDoctor', {
+            fetch('https://dbms-project-sem2.onrender.com/addDoctor', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ DoctorName: doctorName, Department: department, Category: category })
@@ -272,7 +272,7 @@
         }
 
         function fetchAllDoctors() {
-            fetch('http://localhost:5000/getDoctors')
+            fetch('https://dbms-project-sem2.onrender.com/getDoctors')
                 .then(res => res.json())
                 .then(data => {
                     let tableBody = document.querySelector('#doctorTable tbody');
@@ -296,7 +296,7 @@
             else if (category === 'Visiting') url = 'getVisitingDoctors';
             else url = 'getTraineeDoctors';
 
-            fetch(`http://localhost:5000/${url}`)
+            fetch(`https://dbms-project-sem2.onrender.com/${url}`)
                 .then(res => res.json())
                 .then(data => {
                     let tableBody = document.querySelector('#doctorTable tbody');
@@ -315,7 +315,7 @@
         }
 
         function deleteDoctor(id) {
-            fetch(`http://localhost:5000/deleteDoctor/${id}`, {
+            fetch(`https://dbms-project-sem2.onrender.com/deleteDoctor/${id}`, {
                 method: 'DELETE'
             })
                 .then(res => res.text())
@@ -334,7 +334,7 @@
             const gender = document.getElementById('gender').value;
             const PatientCondition = document.getElementById('PatientCondition').value;
 
-            fetch('http://localhost:5000/addPatient', {
+            fetch('https://dbms-project-sem2.onrender.com/addPatient', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ FirstName: patientFirstName.trim(), LastName: patientLastName.trim(), Age: age, Address: address, Disease: disease, Gender: gender, PatientCondition: PatientCondition })
@@ -347,7 +347,7 @@
         }
 
         function fetchPatients() {
-            fetch('http://localhost:5000/getPatients')
+            fetch('https://dbms-project-sem2.onrender.com/getPatients')
                 .then(res => res.json())
                 .then(data => {
                     let tableBody = document.querySelector('#patientTable tbody');
@@ -370,7 +370,7 @@
         }
 
         function fetchInpatients() {
-            fetch('http://localhost:5000/getInpatients')
+            fetch('https://dbms-project-sem2.onrender.com/getInpatients')
                 .then(res => res.json())
                 .then(data => {
                     let tableBody = document.querySelector('#patientTable tbody');
@@ -398,7 +398,7 @@
         }
 
         function fetchOutpatients() {
-            fetch('http://localhost:5000/getOutpatients')
+            fetch('https://dbms-project-sem2.onrender.com/getOutpatients')
                 .then(res => res.json())
                 .then(data => {
                     let tableBody = document.querySelector('#patientTable tbody');
@@ -422,7 +422,7 @@
         }
 
         function deletePatient(id) {
-            fetch(`http://localhost:5000/deletePatient/${id}`, {
+            fetch(`https://dbms-project-sem2.onrender.com/deletePatient/${id}`, {
                 method: 'DELETE'
             })
                 .then(res => res.text())
@@ -433,7 +433,7 @@
         }
 
         function fetchRooms() {
-            fetch('http://localhost:5000/getRooms')
+            fetch('https://dbms-project-sem2.onrender.com/getRooms')
                 .then(res => res.json())
                 .then(data => {
                     let tableBody = document.querySelector('#roomTable tbody');
@@ -455,7 +455,7 @@
             const inpatientId = document.getElementById('inpatientId').value;
             const status = document.getElementById('status').value;
 
-            fetch(`http://localhost:5000/dischargePatient/${inpatientId}`, {
+            fetch(`https://dbms-project-sem2.onrender.com/dischargePatient/${inpatientId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ Status: status })
@@ -473,7 +473,7 @@
             const operationCharges = document.getElementById('operationCharges').value;
             const medicineCharges = document.getElementById('medicineCharges').value;
 
-            fetch('http://localhost:5000/addBill', {
+            fetch('https://dbms-project-sem2.onrender.com/generateBill', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -490,37 +490,50 @@
                 });
         }
 
-        // Calculate Total Bill
         function calculateTotalBill() {
             const patientId = document.getElementById('calculateBillPatientId').value;
-            fetch(`http://localhost:5000/calculateTotalBill/${patientId}`)
+
+            fetch(`https://dbms-project-sem2.onrender.com/calculateTotalBill/${patientId}`)
                 .then(res => res.json())
                 .then(data => {
-                    document.getElementById('totalBillResult').innerText = `Total Bill: $${data.TotalBill}`;
+                    if (Array.isArray(data) && data.length > 0) {
+                        // Sort bills by date (latest first)
+                        const latestBill = data.sort((a, b) => new Date(b.BillDate) - new Date(a.BillDate))[0];
+
+                        const total = parseFloat(latestBill.TotalBillAmount).toFixed(2);
+                        document.getElementById('totalBillResult').innerText = `Total Bill: $${total}`;
+                    } else {
+                        document.getElementById('totalBillResult').innerText = 'No bill found for this patient.';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('totalBillResult').innerText = 'Error fetching bill.';
                 });
         }
 
-        // Check Room Availability
         function checkRoomAvailability() {
             const roomType = document.getElementById('roomTypeCheck').value;
-            fetch(`http://localhost:5000/isRoomAvailable/${roomType}`)
+            fetch(`https://dbms-project-sem2.onrender.com/isRoomAvailable/${roomType}`)
                 .then(res => res.json())
                 .then(data => {
-                    const isAvailable = data.IsAvailable ? 'Available' : 'Not Available';
+                    const isAvailable = data.length > 0 ? 'Available' : 'Not Available';
                     document.getElementById('roomAvailabilityResult').innerText = `Room Availability: ${isAvailable}`;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('roomAvailabilityResult').innerText = 'Error checking availability';
                 });
         }
 
-        // Admit Patient
         function admitPatient() {
             const patientId = document.getElementById('admitPatientId').value;
-            const roomType = document.getElementById('admitRoomType').value;
+            const RoomType = document.getElementById('admitRoomType').value;
             const advanceAmount = document.getElementById('admitAdvanceAmount').value;
-
-            fetch('http://localhost:5000/admitPatient', {
+            fetch('https://dbms-project-sem2.onrender.com/admitPatient', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ patientId, roomType, advanceAmount })
+                body: JSON.stringify({ patientId, RoomType, advanceAmount })
             })
                 .then(res => res.text())
                 .then(data => {
@@ -528,12 +541,11 @@
                 });
         }
 
-        // Discharge Patient
         function dischargePatient() {
             const patientId = document.getElementById('dischargePatientId').value;
             const dischargeDate = document.getElementById('dischargeDate').value;
 
-            fetch(`http://localhost:5000/dischargePatient/${patientId}`, {
+            fetch(`https://dbms-project-sem2.onrender.com/dischargePatient/${patientId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ dischargeDate })
@@ -544,7 +556,6 @@
                 });
         }
 
-        // Update Patient Info
         function updatePatientInfo() {
             const patientId = document.getElementById('updatePatientId').value;
             const firstName = document.getElementById('updateFirstName').value;
@@ -553,35 +564,46 @@
             const age = document.getElementById('updateAge').value;
             const gender = document.getElementById('updateGender').value;
             const disease = document.getElementById('updateDisease').value;
-            const PatientCondition = document.getElementById('updateCondition').value;
+            const condition = document.getElementById('updateCondition').value;
 
-            // Prepare the update object, only include fields that are provided
+            if (!patientId) {
+                alert('Patient ID is required');
+                return;
+            }
+
             const updateData = {
                 patientId,
                 ...(firstName && { firstName }),
                 ...(lastName && { lastName }),
                 ...(address && { address }),
-                ...(age && { age }),
+                ...(age && { age: parseInt(age) }),
                 ...(gender && { gender }),
                 ...(disease && { disease }),
-                ...(PatientCondition && { PatientCondition })
+                ...(condition && { patientCondition: condition })
             };
 
-            fetch(`http://localhost:5000/updatePatientInfo`, {
+            fetch(`https://dbms-project-sem2.onrender.com/updatePatientInfo`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updateData)
             })
-                .then(res => res.text())
+                .then(res => {
+                    if (!res.ok) {
+                        return res.text().then(text => { throw new Error(text) });
+                    }
+                    return res.text();
+                })
                 .then(data => {
                     alert(data);
+                })
+                .catch(error => {
+                    alert(`Error: ${error.message}`);
                 });
         }
 
-        // Get Patient Count By Condition
         function getPatientCountByCondition() {
             const condition = document.getElementById('conditionCheck').value;
-            fetch(`http://localhost:5000/getPatientCountByCondition/${condition}`)
+            fetch(`https://dbms-project-sem2.onrender.com/getPatientsByDisease/${condition}`)
                 .then(res => {
                     if (!res.ok) {
                         throw new Error('Network response was not ok');
@@ -589,8 +611,7 @@
                     return res.json();
                 })
                 .then(data => {
-                    console.log(data); // Debug to check the response format
-                    const count = data?.PatientCount || data[0]?.PatientCount || 0;
+                    const count = data.PatientCount || 0;
                     document.getElementById('patientCountResult').innerText = `Patient Count: ${count}`;
                 })
                 .catch(error => {
@@ -598,7 +619,6 @@
                     document.getElementById('patientCountResult').innerText = 'Error fetching patient count';
                 });
         }
-
 
         function clearDoctorFields() {
             document.getElementById('doctorName').value = '';
@@ -613,7 +633,7 @@
             document.getElementById('address').value = '';
             document.getElementById('disease').value = '';
             document.getElementById('gender').value = '';
-            document.getElementById('PatientCondition').value = 'Mild'; // Reset PatientCondition to default
+            document.getElementById('PatientCondition').value = 'Mild';
         }
     </script>
 

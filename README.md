@@ -9,6 +9,11 @@ This documentation provides an overview of the Hospital Management System built 
 
 → https://dbms-project-sem2.onrender.com/
 
+---
+
+**Documentaion Link**
+
+→ https://docs.google.com/document/d/1oW-9DV-lsgGwefLeIsd_51osxYd6Z_jeAOv41UP02z8/edit?tab=t.0 
 
 ---
 
